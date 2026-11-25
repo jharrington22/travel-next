@@ -130,7 +130,7 @@ func (s *Server) readyz(c *gin.Context) {
 	}
 	body := gin.H{"status": "ok", "database": "ok", "generator": s.gen.Name()}
 	pc := s.prompt.Current()
-	body["prompt_context"] = gin.H{"source": pc.Source, "checksum": pc.Checksum, "version": pc.Version}
+	body["prompt_context"] = gin.H{"source": pc.Source, "checksum": pc.Checksum}
 	if err := s.prompt.LastError(); err != nil {
 		body["prompt_context_error"] = err.Error()
 	}

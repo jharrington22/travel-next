@@ -64,7 +64,7 @@ func run() error {
 		return err
 	}
 	pc := prompt.Current()
-	log.Info("prompt context loaded", "source", pc.Source, "checksum", pc.Checksum, "version", pc.Version)
+	log.Info("prompt context loaded", "source", pc.Source, "checksum", pc.Checksum)
 
 	gen, err := ai.New(cfg.AI, prompt)
 	if err != nil {
