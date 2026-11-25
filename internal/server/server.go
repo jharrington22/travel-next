@@ -20,6 +20,7 @@ import (
 	"github.com/jamesh/travel-next/internal/auth"
 	"github.com/jamesh/travel-next/internal/config"
 	"github.com/jamesh/travel-next/internal/models"
+	"github.com/jamesh/travel-next/internal/photos"
 	"github.com/jamesh/travel-next/internal/promptctx"
 	"github.com/jamesh/travel-next/internal/store"
 )
@@ -32,17 +33,18 @@ type Server struct {
 	store  *store.Store
 	auth   *auth.Service
 	gen    ai.Generator
+	photos photos.Finder
 	prompt *promptctx.Loader
 	log    *slog.Logger
 	tmpl   *template.Template
 }
 
-func New(cfg *config.Config, st *store.Store, authSvc *auth.Service, gen ai.Generator, prompt *promptctx.Loader, log *slog.Logger) (*Server, error) {
+func New(cfg *config.Config, st *store.Store, authSvc *auth.Service, gen ai.Generator, photoFinder photos.Finder, prompt *promptctx.Loader, log *slog.Logger) (*Server, error) {
 	tmpl, err := template.New("").Funcs(templateFuncs()).ParseFS(assetFS, "templates/*.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse templates: %w", err)
 	}
-	return &Server{cfg: cfg, store: st, auth: authSvc, gen: gen, prompt: prompt, log: log, tmpl: tmpl}, nil
+	return &Server{cfg: cfg, store: st, auth: authSvc, gen: gen, photos: photoFinder, prompt: prompt, log: log, tmpl: tmpl}, nil
 }
 
 // Router builds the full route table.
@@ -247,11 +249,34 @@ func (s *Server) generate(it models.Itinerary, u *models.User) {
 		}
 		return
 	}
+	s.attachHeroPhoto(ctx, log, doc)
+
 	if err := s.store.SaveItineraryContent(ctx, it.ID, doc, s.gen.Name()); err != nil {
 		log.Error("could not save itinerary", "error", err)
 		return
 	}
 	log.Info("itinerary generated", "days", len(doc.Days), "elapsed", time.Since(started).String())
+}
+
+// attachHeroPhoto looks up one photo by destination — text the model already
+// generated, so this costs no extra AI tokens — and stores only the link and
+// its required attribution, never the image itself. A lookup failure (no key
+// configured, rate-limited, no results) must never fail the itinerary: it
+// just renders without a photo.
+func (s *Server) attachHeroPhoto(ctx context.Context, log *slog.Logger, doc *models.ItineraryDoc) {
+	photo, err := s.photos.Find(ctx, doc.Destination)
+	if err != nil {
+		log.Warn("hero photo lookup failed", "destination", doc.Destination, "error", err)
+		return
+	}
+	if photo == nil {
+		return
+	}
+	doc.HeroPhoto = &models.HeroPhoto{
+		URL:                   photo.URL,
+		AttributionName:       photo.AttributionName,
+		AttributionProfileURL: photo.AttributionProfileURL,
+	}
 }
 
 func parseUUID(c *gin.Context, name string) (uuid.UUID, bool) {
@@ -277,9 +302,11 @@ func requestLogger(log *slog.Logger) gin.HandlerFunc {
 }
 
 func securityHeaders() gin.HandlerFunc {
-	// The pages ship their own CSS and JS and load nothing third-party, so the
-	// policy can stay tight.
-	const csp = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+	// The pages ship their own CSS and JS and load nothing third-party except
+	// hotlinked Unsplash hero photos (images.unsplash.com) — we never host or
+	// proxy them ourselves, only link to Unsplash's own CDN, per their API
+	// terms. Everything else in the policy stays as tight as before.
+	const csp = "default-src 'self'; img-src 'self' data: https://images.unsplash.com; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
 	return func(c *gin.Context) {
 		h := c.Writer.Header()
 		h.Set("X-Content-Type-Options", "nosniff")

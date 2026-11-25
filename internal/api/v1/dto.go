@@ -93,6 +93,15 @@ type Document struct {
 	Budget      *Budget     `json:"budget,omitempty"`
 	Packing     []string    `json:"packing"`
 	Tips        []string    `json:"tips"`
+	HeroPhoto   *HeroPhoto  `json:"hero_photo,omitempty"`
+}
+
+// HeroPhoto is a hotlinked photo plus the attribution its source requires.
+// We store only the link, never the image itself.
+type HeroPhoto struct {
+	URL                   string `json:"url"`
+	AttributionName       string `json:"attribution_name"`
+	AttributionProfileURL string `json:"attribution_profile_url"`
 }
 
 type Day struct {

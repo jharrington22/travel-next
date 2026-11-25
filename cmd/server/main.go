@@ -15,6 +15,7 @@ import (
 	"github.com/jamesh/travel-next/internal/ai"
 	"github.com/jamesh/travel-next/internal/auth"
 	"github.com/jamesh/travel-next/internal/config"
+	"github.com/jamesh/travel-next/internal/photos"
 	"github.com/jamesh/travel-next/internal/promptctx"
 	"github.com/jamesh/travel-next/internal/server"
 	"github.com/jamesh/travel-next/internal/store"
@@ -71,8 +72,15 @@ func run() error {
 	}
 	log.Info("itinerary generator ready", "generator", gen.Name())
 
+	photoFinder := photos.New(cfg.UnsplashAccessKey)
+	if cfg.UnsplashAccessKey == "" {
+		log.Info("hero photos disabled (set UNSPLASH_ACCESS_KEY to enable)")
+	} else {
+		log.Info("hero photos enabled", "provider", "unsplash")
+	}
+
 	authSvc := auth.NewService(st, cfg.SessionTTL, cfg.CookieSecure)
-	srv, err := server.New(cfg, st, authSvc, gen, prompt, log)
+	srv, err := server.New(cfg, st, authSvc, gen, photoFinder, prompt, log)
 	if err != nil {
 		return err
 	}

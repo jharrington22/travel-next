@@ -20,6 +20,7 @@ end, and Kubernetes manifests that run on a laptop cluster.
 - [Build](#build)
 - [Configuration](#configuration)
   - [AI providers](#ai-providers)
+  - [Hero photos (optional, costs no AI tokens)](#hero-photos-optional-costs-no-ai-tokens)
   - [Prompt context: tuning the AI without a code change](#prompt-context-tuning-the-ai-without-a-code-change)
 - [Running locally](#running-locally)
   - [1. Go process + Postgres in podman](#1-go-process--postgres-in-podman)
@@ -153,6 +154,7 @@ One of the two is required; the app refuses to start without a database.
 | `DAILY_GENERATION_LIMIT` | `25` | Itineraries per user per rolling 24h |
 | `GENERATION_TIMEOUT` | `10m` | Hard ceiling on one background generation |
 | `PROMPT_CONTEXT_FILE` | `deploy/k8s/prompt-context.yaml` | See below |
+| `UNSPLASH_ACCESS_KEY` | *(none)* | Optional. Enables a hero photo per itinerary — see [Hero photos](#hero-photos-optional-costs-no-ai-tokens) |
 
 ### AI providers
 
@@ -188,6 +190,34 @@ does not implement strict `json_schema`, the request is retried once in
 JSON-object mode with the schema inlined in the prompt, and the response is
 repaired (markdown fences stripped, missing scalars filled from the request)
 before it is stored — small models need that slack.
+
+### Hero photos (optional, costs no AI tokens)
+
+Set `UNSPLASH_ACCESS_KEY` (a free key from
+[unsplash.com/developers](https://unsplash.com/developers)) to put a photo
+behind each itinerary's hero banner:
+
+```bash
+UNSPLASH_ACCESS_KEY=... make run
+```
+
+The lookup runs once per itinerary, after the model responds, searching
+Unsplash by the `destination` text the model already returned — it is a plain
+HTTP call, not an AI call, so it adds nothing to the token bill. We never
+download or re-host the photo: only its direct `images.unsplash.com` URL and
+the photographer attribution Unsplash's API terms require are stored on the
+itinerary (`hero_photo` in the JSON document), and the page hotlinks it —
+Unsplash's preferred usage, not merely a tolerated one. Leave the key unset
+and itineraries render with the plain color-gradient banner instead; nothing
+else changes. The free tier allows 50 searches/hour, plenty for one lookup per
+itinerary created.
+
+Because the photo is genuinely optional, the CSP in `securityHeaders()`
+(`internal/server/server.go`) allows exactly one additional image host,
+`https://images.unsplash.com`, and nothing else — `style-src`/`script-src`
+stay `'self'` with no `'unsafe-inline'`; the photo's background-image is set
+by `static/js/itinerary.js` from a `data-hero-photo` attribute rather than an
+inline `style=""`, specifically so it doesn't need a looser `style-src`.
 
 ### Prompt context: tuning the AI without a code change
 
@@ -460,8 +490,10 @@ order.
 - API tokens: `tnx_` + 32 random bytes, stored as SHA-256, displayed once, with
   a visible prefix for identification and per-token revocation.
 - Headers: `nosniff`, `X-Frame-Options: DENY`, a referrer policy, and a strict
-  `Content-Security-Policy` on HTML routes (the pages load no third-party
-  assets, so `default-src 'self'` holds).
+  `Content-Security-Policy` on HTML routes. The one deliberate exception is
+  `img-src https://images.unsplash.com` for the optional hero photo (see
+  [Hero photos](#hero-photos-optional-costs-no-ai-tokens)) — `style-src` and
+  `script-src` stay `'self'` with no `'unsafe-inline'`.
 - Prompt injection: the traveller's free-text notes are passed as data and
   labelled as such in the prompt, and the generated document is rendered through
   `html/template`'s contextual escaping — the model's output is never

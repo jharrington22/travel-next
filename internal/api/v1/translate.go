@@ -156,6 +156,13 @@ func DocumentToWire(doc *models.ItineraryDoc) *Document {
 		}
 		out.Budget = b
 	}
+	if doc.HeroPhoto != nil {
+		out.HeroPhoto = &HeroPhoto{
+			URL:                   doc.HeroPhoto.URL,
+			AttributionName:       doc.HeroPhoto.AttributionName,
+			AttributionProfileURL: doc.HeroPhoto.AttributionProfileURL,
+		}
+	}
 	return out
 }
 
@@ -219,6 +226,13 @@ func DocumentToInternal(in *Document) *models.ItineraryDoc {
 			b.Breakdown = append(b.Breakdown, models.BudgetLine{Label: line.Label, Amount: line.Amount, Note: line.Note})
 		}
 		out.Budget = b
+	}
+	if in.HeroPhoto != nil {
+		out.HeroPhoto = &models.HeroPhoto{
+			URL:                   in.HeroPhoto.URL,
+			AttributionName:       in.HeroPhoto.AttributionName,
+			AttributionProfileURL: in.HeroPhoto.AttributionProfileURL,
+		}
 	}
 	return out
 }

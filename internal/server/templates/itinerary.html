@@ -21,125 +21,137 @@
   </section>
 
 {{ else if $doc }}
-  <header class="trip-head">
-    <p class="eyebrow">{{ $doc.Emoji }} {{ $doc.Destination }} · {{ $doc.Travellers }} travelling</p>
+
+  <header class="it-hero{{ if $doc.HeroPhoto }} has-photo{{ end }}"
+    {{ if $doc.HeroPhoto }}data-hero-photo="{{ $doc.HeroPhoto.URL }}"{{ end }}>
+    <span class="eyebrow">{{ $doc.Emoji }} A trip for {{ $doc.Travellers }}</span>
     <h1>{{ $doc.Title }}</h1>
     {{ if $doc.Tagline }}<p class="tagline">{{ $doc.Tagline }}</p>{{ end }}
-    <p class="dates">{{ prettyDate $doc.StartDate }} → {{ prettyDate $doc.EndDate }}
-      · {{ len $doc.Days }} days</p>
+    <p class="dates">{{ prettyDate $doc.StartDate }} → {{ prettyDate $doc.EndDate }} · {{ len $doc.Days }} days</p>
     {{ if $doc.Summary }}<p class="lede">{{ $doc.Summary }}</p>{{ end }}
-
-    <div class="row gap wrap">
-      <button class="btn ghost small" data-copy="{{ .ShareURL }}">Copy link</button>
-      <button class="btn ghost small" onclick="window.print()">Print</button>
-      {{ if .IsOwner }}
-        <form method="post" action="/itineraries/{{ $it.ID }}/visibility" class="inline">
-          <input type="hidden" name="csrf_token" value="{{ .CSRF }}">
-          <input type="hidden" name="public" value="{{ if $it.Public }}false{{ else }}true{{ end }}">
-          <input type="hidden" name="return_to" value="{{ $it.URLPath }}">
-          <button class="btn ghost small" type="submit">{{ if $it.Public }}Make private{{ else }}Publish{{ end }}</button>
-        </form>
-        <a class="btn ghost small" href="/dashboard">My trips</a>
-      {{ end }}
-    </div>
-    {{ if and .IsOwner (not $it.Public) }}
-      <p class="note">Private: only you can see this page. Publish it to share the link.</p>
+    <nav class="jumpnav">
+      <a href="#days">Itinerary ↓</a>
+      {{ if or $doc.Lodging $doc.Transport }}<a href="#practical">Lodging &amp; transport</a>{{ end }}
+      {{ if $doc.Budget }}<a href="#budget">Budget</a>{{ end }}
+      {{ if or $doc.Food $doc.Tips $doc.Packing }}<a href="#more">Good to know</a>{{ end }}
+    </nav>
+    {{ with $doc.HeroPhoto }}
+      <p class="photo-credit">Photo by
+        {{ if .AttributionProfileURL }}<a href="{{ .AttributionProfileURL }}" target="_blank" rel="noopener noreferrer">{{ .AttributionName }}</a>{{ else }}{{ .AttributionName }}{{ end }}
+        on <a href="https://unsplash.com/?utm_source=travel-next&amp;utm_medium=referral" target="_blank" rel="noopener noreferrer">Unsplash</a></p>
     {{ end }}
   </header>
 
+  <div class="owner-row row gap wrap">
+    <button class="btn ghost small" data-copy="{{ .ShareURL }}">Copy link</button>
+    <button class="btn ghost small" onclick="window.print()">Print</button>
+    {{ if .IsOwner }}
+      <form method="post" action="/itineraries/{{ $it.ID }}/visibility" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ .CSRF }}">
+        <input type="hidden" name="public" value="{{ if $it.Public }}false{{ else }}true{{ end }}">
+        <input type="hidden" name="return_to" value="{{ $it.URLPath }}">
+        <button class="btn ghost small" type="submit">{{ if $it.Public }}Make private{{ else }}Publish{{ end }}</button>
+      </form>
+      <a class="btn ghost small" href="/dashboard">My trips</a>
+    {{ end }}
+  </div>
+  {{ if and .IsOwner (not $it.Public) }}
+    <p class="note">Private: only you can see this page. Publish it to share the link.</p>
+  {{ end }}
+
   {{ if $doc.Highlights }}
-  <section class="block">
-    <h2>The shape of it</h2>
+  <section class="block" id="days">
+    <span class="tag">THE SHAPE OF IT</span>
+    <h2>{{ len $doc.Days }} Days, Countless Memories.</h2>
     <ul class="highlights">
       {{ range $doc.Highlights }}<li>{{ . }}</li>{{ end }}
     </ul>
   </section>
   {{ end }}
 
-  <section class="block">
-    <h2>Day by day</h2>
-    <div class="daytabs" role="tablist">
-      {{ range $i, $d := $doc.Days }}
-        <button class="daytab{{ if eq $i 0 }} on{{ end }}" role="tab" data-day="{{ $i }}">
-          <span class="n">Day {{ $d.DayNumber }}</span>
-          <span class="d">{{ shortDate $d.Date }}</span>
-        </button>
-      {{ end }}
-    </div>
+  <p class="planning-note">
+    <strong>A note about the schedule</strong>
+    {{ if $doc.Budget }}{{ $doc.Budget.Caveat }}{{ else }}Times, prices and opening hours here are estimates — check anything you're relying on.{{ end }}
+  </p>
 
-    {{ range $i, $d := $doc.Days }}
-      <div class="day{{ if ne $i 0 }} hidden{{ end }}" data-daypanel="{{ $i }}">
-        <h3>Day {{ $d.DayNumber }} — {{ $d.Title }}</h3>
-        <p class="daydate">{{ prettyDate $d.Date }}</p>
-        {{ if $d.Summary }}<p>{{ $d.Summary }}</p>{{ end }}
+  <nav class="date-nav" aria-label="Jump to a day">
+    {{ range $doc.Days }}
+      <a href="#day-{{ .DayNumber }}"><b>{{ weekday .Date }}</b><small>{{ monthDay .Date }}</small></a>
+    {{ end }}
+  </nav>
+
+  {{ if or $doc.Lodging $doc.Transport }}
+  <section class="info-grid" id="practical">
+    {{ range $doc.Lodging }}
+      <div class="info-card">
+        <span class="tag">WHERE YOU'RE STAYING</span>
+        <h3>{{ .Name }}</h3>
+        <p>{{ if .Area }}<b>{{ .Area }}</b><br>{{ end }}{{ .Style }}{{ if .Nights }} · {{ .Nights }}{{ end }}</p>
+        {{ if .Note }}<p>{{ .Note }}</p>{{ end }}
+      </div>
+    {{ end }}
+    {{ range $doc.Transport }}
+      <div class="info-card">
+        <span class="tag">GETTING AROUND</span>
+        <h3>{{ .Leg }}</h3>
+        <p><b>{{ .Mode }}</b></p>
+        {{ if .Detail }}<p>{{ .Detail }}</p>{{ end }}
+      </div>
+    {{ end }}
+  </section>
+  {{ end }}
+
+  {{ range $doc.Days }}
+    <section class="day-card" id="day-{{ .DayNumber }}">
+      <div class="day-head">
+        <span class="eyebrow">DAY {{ printf "%02d" .DayNumber }} / {{ weekday .Date }} · {{ monthDay .Date }}</span>
+        <h2>{{ .Title }}</h2>
+        {{ if .Summary }}<p>{{ .Summary }}</p>{{ end }}
+      </div>
+      <div class="day-body">
         <ol class="timeline">
-          {{ range $d.Items }}
-            <li class="item cat-{{ .Category }}">
-              <div class="when">{{ .Time }}</div>
-              <div class="what">
-                <h4>{{ .Title }}</h4>
+          {{ range .Items }}
+            <li class="tl-event">
+              <div class="tl-when">{{ .Time }}</div>
+              <div>
+                <h3>{{ .Title }}</h3>
                 {{ if .Description }}<p>{{ .Description }}</p>{{ end }}
+                {{ if or .Location .Duration .CostEstimate }}
                 <p class="meta">
                   {{ if .Location }}<span>📍 {{ .Location }}</span>{{ end }}
                   {{ if .Duration }}<span>⏱ {{ .Duration }}</span>{{ end }}
                   {{ if .CostEstimate }}<span>≈ {{ .CostEstimate }}</span>{{ end }}
                 </p>
-                {{ if .BookingNote }}<p class="booking">Book ahead: {{ .BookingNote }}</p>{{ end }}
+                {{ end }}
+                {{ if .BookingNote }}<span class="resource-link">Book ahead: {{ .BookingNote }}</span>{{ end }}
               </div>
             </li>
           {{ end }}
         </ol>
       </div>
-    {{ end }}
-  </section>
-
-  <div class="columns">
-    {{ if $doc.Lodging }}
-    <section class="block">
-      <h2>Where we're staying</h2>
-      {{ range $doc.Lodging }}
-        <div class="mini">
-          <h4>{{ .Name }}</h4>
-          <p class="meta">{{ if .Area }}<span>📍 {{ .Area }}</span>{{ end }}
-            {{ if .Style }}<span>{{ .Style }}</span>{{ end }}
-            {{ if .Nights }}<span>{{ .Nights }}</span>{{ end }}</p>
-          {{ if .Note }}<p>{{ .Note }}</p>{{ end }}
-        </div>
-      {{ end }}
     </section>
-    {{ end }}
+  {{ end }}
 
+  <div class="columns" id="more">
     {{ if $doc.Food }}
     <section class="block">
       <h2>Eating</h2>
-      {{ range $doc.Food }}
-        <div class="mini">
-          <h4>{{ .Name }}</h4>
-          <p class="meta">{{ if .Kind }}<span>{{ .Kind }}</span>{{ end }}
-            {{ if .Area }}<span>📍 {{ .Area }}</span>{{ end }}
-            {{ if .PriceBand }}<span>{{ .PriceBand }}</span>{{ end }}</p>
-          {{ if .Note }}<p>{{ .Note }}</p>{{ end }}
-        </div>
-      {{ end }}
-    </section>
-    {{ end }}
-
-    {{ if $doc.Transport }}
-    <section class="block">
-      <h2>Getting around</h2>
-      {{ range $doc.Transport }}
-        <div class="mini">
-          <h4>{{ .Leg }}</h4>
-          <p class="meta"><span>{{ .Mode }}</span></p>
-          {{ if .Detail }}<p>{{ .Detail }}</p>{{ end }}
-        </div>
-      {{ end }}
+      <div class="more-grid">
+        {{ range $doc.Food }}
+          <article>
+            <h4>{{ .Name }}</h4>
+            <p>{{ .Note }}</p>
+            <p class="meta">{{ if .Kind }}{{ .Kind }}{{ end }}{{ if .Area }} · 📍 {{ .Area }}{{ end }}{{ if .PriceBand }} · {{ .PriceBand }}{{ end }}</p>
+          </article>
+        {{ end }}
+      </div>
     </section>
     {{ end }}
 
     {{ with $doc.Budget }}
-    <section class="block">
-      <h2>Rough budget</h2>
+    <section class="block" id="budget">
+      <span class="tag">ROUGH NUMBERS</span>
+      <h2>Budget</h2>
       <p class="budget-total">{{ .TotalEstimate }}
         {{ if .PerPerson }}<small>({{ .PerPerson }} each)</small>{{ end }}</p>
       <table class="list tight">
@@ -147,7 +159,6 @@
           <tr><td>{{ .Label }}</td><td class="num">{{ .Amount }}</td><td><small>{{ .Note }}</small></td></tr>
         {{ end }}
       </table>
-      {{ if .Caveat }}<p class="note">{{ .Caveat }}</p>{{ end }}
     </section>
     {{ end }}
 
@@ -171,9 +182,12 @@
     {{ end }}
   </div>
 
-  <footer class="trip-foot">
-    <p><small>Planned with Travel Next{{ if $it.Model }} using {{ $it.Model }}{{ end }}.
-      Times, prices and openings are estimates — check anything you're relying on.</small></p>
+  <footer class="it-footer">
+    <span class="eyebrow">WITH LOVE, FROM {{ $doc.Destination }}</span>
+    <h2>We Can't Wait To See You.</h2>
+    <p>Planned with Travel Next{{ if $it.Model }} using {{ $it.Model }}{{ end }}.
+      Times, prices and openings are estimates — check anything you're relying on.</p>
+    <a class="back" href="#days">Back to the itinerary ↑</a>
   </footer>
 
 {{ else }}

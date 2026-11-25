@@ -116,6 +116,19 @@ type ItineraryDoc struct {
 	Packing     []string    `json:"packing"`
 	Tips        []string    `json:"tips"`
 	Transport   []Transport `json:"transport"`
+
+	// HeroPhoto is looked up from the Destination after the model responds —
+	// it is never part of what we ask the model to generate, so it costs no
+	// extra AI tokens. Nil when no photo provider is configured or none of its
+	// search results fit.
+	HeroPhoto *HeroPhoto `json:"hero_photo,omitempty"`
+}
+
+// HeroPhoto is a hotlinked photo plus the attribution its source requires.
+type HeroPhoto struct {
+	URL                   string `json:"url"`
+	AttributionName       string `json:"attribution_name"`
+	AttributionProfileURL string `json:"attribution_profile_url"`
 }
 
 type Day struct {

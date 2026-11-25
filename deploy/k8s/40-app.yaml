@@ -61,6 +61,11 @@ spec:
                 secretKeyRef:
                   name: travel-next
                   key: AI_API_KEY
+            - name: UNSPLASH_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: travel-next
+                  key: UNSPLASH_ACCESS_KEY
           volumeMounts:
             # Edit the ConfigMap and running pods pick the change up within
             # about a minute — no restart, no rebuild.
