@@ -1,18 +1,23 @@
-// Day switching, copy-link and a browser-local packing checklist.
+// Copy-link and a browser-local packing checklist. Day navigation is plain
+// anchor links (see .date-nav / .jumpnav in itinerary.html) with CSS
+// scroll-behavior, so it needs no JS and still works if this script fails.
 (function () {
   "use strict";
 
-  var tabs = document.querySelectorAll(".daytab");
-  var panels = document.querySelectorAll("[data-daypanel]");
-  tabs.forEach(function (tab) {
-    tab.addEventListener("click", function () {
-      var want = tab.getAttribute("data-day");
-      tabs.forEach(function (t) { t.classList.toggle("on", t === tab); });
-      panels.forEach(function (p) {
-        p.classList.toggle("hidden", p.getAttribute("data-daypanel") !== want);
-      });
-    });
-  });
+  // The hero photo URL is set here, from an external script, rather than as
+  // an inline style attribute — our Content-Security-Policy intentionally has
+  // no 'unsafe-inline' on style-src, which silently drops inline style="...".
+  // Script-driven style changes aren't subject to that directive, so this is
+  // the CSP-compliant way to do it. Loading the image itself still goes
+  // through img-src, which only allows Unsplash's own CDN.
+  var hero = document.querySelector("[data-hero-photo]");
+  if (hero) {
+    var photoURL = hero.getAttribute("data-hero-photo");
+    if (/^https:\/\/images\.unsplash\.com\//.test(photoURL)) {
+      hero.style.backgroundImage =
+        "linear-gradient(165deg, rgba(21,46,40,.88) 0%, rgba(21,46,40,.55) 100%), url('" + photoURL + "')";
+    }
+  }
 
   document.querySelectorAll("[data-copy]").forEach(function (btn) {
     btn.addEventListener("click", function () {

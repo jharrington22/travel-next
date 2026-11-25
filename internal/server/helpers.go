@@ -4,6 +4,7 @@ import (
 	"embed"
 	"html/template"
 	"io/fs"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -29,6 +30,20 @@ func templateFuncs() template.FuncMap {
 				return iso
 			}
 			return t.Format("2 Jan")
+		},
+		"weekday": func(iso string) string {
+			t, err := time.Parse("2006-01-02", iso)
+			if err != nil {
+				return ""
+			}
+			return strings.ToUpper(t.Format("Mon"))
+		},
+		"monthDay": func(iso string) string {
+			t, err := time.Parse("2006-01-02", iso)
+			if err != nil {
+				return iso
+			}
+			return strings.ToUpper(t.Format("Jan 2"))
 		},
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/jamesh/travel-next/internal/ai"
 	"github.com/jamesh/travel-next/internal/auth"
 	"github.com/jamesh/travel-next/internal/config"
+	"github.com/jamesh/travel-next/internal/photos"
 	"github.com/jamesh/travel-next/internal/promptctx"
 )
 
@@ -29,7 +30,7 @@ func newTestServer(t *testing.T) *Server {
 		t.Fatalf("generator: %v", err)
 	}
 	cfg := &config.Config{BaseURL: "http://localhost:8080", Env: "test"}
-	srv, err := New(cfg, nil, auth.NewService(nil, 0, false), gen, loader,
+	srv, err := New(cfg, nil, auth.NewService(nil, 0, false), gen, photos.New(""), loader,
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatalf("New: %v", err)

@@ -23,6 +23,12 @@ type Config struct {
 	// Kubernetes it is a ConfigMap mounted into the pod.
 	PromptContextFile string
 
+	// UnsplashAccessKey enables a hero photo on each itinerary, looked up by
+	// destination after generation (no extra AI tokens spent on it). Empty
+	// disables the feature rather than erroring — free key from
+	// unsplash.com/developers.
+	UnsplashAccessKey string
+
 	AI AIConfig
 }
 
@@ -55,6 +61,7 @@ func Load() (*Config, error) {
 		DailyGenLimit: envInt("DAILY_GENERATION_LIMIT", 25),
 
 		PromptContextFile: env("PROMPT_CONTEXT_FILE", "deploy/k8s/prompt-context.yaml"),
+		UnsplashAccessKey: env("UNSPLASH_ACCESS_KEY", ""),
 		Env:               env("APP_ENV", "development"),
 	}
 	c.AI = loadAI()
