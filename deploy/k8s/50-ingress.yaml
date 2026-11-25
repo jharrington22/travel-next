@@ -1,0 +1,24 @@
+# The nginx front end, expressed as an ingress. Locally this is the ingress-nginx
+# controller in kind or `minikube addons enable ingress`; the hostname
+# *.localtest.me always resolves to 127.0.0.1, so no /etc/hosts edit is needed.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: travel-next
+  namespace: travel-next
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: travel-next.localtest.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: travel-next
+                port:
+                  number: 80

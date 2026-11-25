@@ -1,0 +1,38 @@
+{{ template "head.html" . }}
+<section>
+  <div class="row between">
+    <h1>My trips</h1>
+    <a class="btn" href="/new">Plan a new trip</a>
+  </div>
+  {{ if not .Itineraries }}
+    <p class="lede">Nothing here yet. <a href="/new">Plan your first trip</a>.</p>
+  {{ else }}
+  <table class="list">
+    <thead><tr><th>Trip</th><th>Dates</th><th>Status</th><th>Link</th><th></th></tr></thead>
+    <tbody>
+    {{ range .Itineraries }}
+      <tr>
+        <td><a href="{{ .URLPath }}">{{ .Title }}</a><br><small>{{ .Request.Destination }}</small></td>
+        <td>{{ shortDate .Request.StartDate }} – {{ shortDate .Request.EndDate }}</td>
+        <td><span class="pill {{ .Status }}">{{ .Status }}</span></td>
+        <td>{{ if .Public }}<small>public</small>{{ else }}<small>private</small>{{ end }}</td>
+        <td class="actions">
+          <form method="post" action="/itineraries/{{ .ID }}/visibility" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ $.CSRF }}">
+            <input type="hidden" name="public" value="{{ if .Public }}false{{ else }}true{{ end }}">
+            <input type="hidden" name="return_to" value="/dashboard">
+            <button class="link" type="submit">{{ if .Public }}Make private{{ else }}Publish{{ end }}</button>
+          </form>
+          <form method="post" action="/itineraries/{{ .ID }}/delete" class="inline"
+                onsubmit="return confirm('Delete this itinerary?')">
+            <input type="hidden" name="csrf_token" value="{{ $.CSRF }}">
+            <button class="link danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {{ end }}
+    </tbody>
+  </table>
+  {{ end }}
+</section>
+{{ template "foot.html" . }}

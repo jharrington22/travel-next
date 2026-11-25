@@ -1,0 +1,421 @@
+openapi: 3.1.0
+info:
+  title: Travel Next API
+  version: "1.0.0"
+  description: |
+    Build and publish shareable travel itineraries.
+
+    Authenticate with a Bearer API token created at `/settings` (or via
+    `POST /api/v1/tokens` while signed in to the browser session). Creating an
+    itinerary returns `202 Accepted` with `status: "generating"`; poll the
+    itinerary until `status` becomes `ready` or `failed`.
+
+    The schemas below are the external contract. They are translated to and from
+    the server's internal model in one place (`internal/api/v1/translate.go`),
+    so internal refactors cannot change this contract by accident.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+  - url: http://travel-next.localtest.me
+    description: Local Kubernetes via the nginx ingress
+security:
+  - bearerAuth: []
+tags:
+  - name: itineraries
+  - name: account
+  - name: meta
+
+paths:
+  /api/v1/me:
+    get:
+      tags: [account]
+      summary: The authenticated user
+      operationId: getMe
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/form-options:
+    get:
+      tags: [meta]
+      summary: Vocabulary offered by the itinerary form
+      description: |
+        Served from the prompt-context ConfigMap, so API clients offer the same
+        choices as the web form without a code change.
+      operationId: getFormOptions
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FormOptions" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/v1/itineraries:
+    get:
+      tags: [itineraries]
+      summary: List your itineraries
+      operationId: listItineraries
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 100 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItineraryList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [itineraries]
+      summary: Create an itinerary and start generating it
+      operationId: createItinerary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TripRequest" }
+      responses:
+        "202":
+          description: Accepted; generation is running in the background.
+          headers:
+            Location:
+              description: Where to poll for the finished itinerary.
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Itinerary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/InvalidRequest" }
+
+  /api/v1/itineraries/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [itineraries]
+      summary: Fetch one itinerary
+      operationId: getItinerary
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Itinerary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [itineraries]
+      summary: Publish or unpublish an itinerary
+      operationId: updateItineraryVisibility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [public]
+              properties:
+                public: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Itinerary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [itineraries]
+      summary: Delete an itinerary
+      operationId: deleteItinerary
+      responses:
+        "204": { description: Deleted }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/tokens:
+    get:
+      tags: [account]
+      summary: List your API tokens
+      operationId: listTokens
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ApiTokenSummary" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [account]
+      summary: Create an API token
+      description: The secret is returned once and is not retrievable later.
+      operationId: createToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 80 }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiTokenCreated" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "An API token from /settings, sent as `Authorization: Bearer tnx_...`."
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: No such resource.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InvalidRequest:
+      description: The request was understood but rejected.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, examples: ["invalid_request"] }
+            message: { type: string }
+            fields:
+              type: object
+              additionalProperties: { type: string }
+
+    User:
+      type: object
+      required: [id, username, email, display_name, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        email: { type: string, format: email }
+        display_name: { type: string }
+        created_at: { type: string, format: date-time }
+
+    TripRequest:
+      type: object
+      required: [destination, start_date, end_date, travellers]
+      properties:
+        destination: { type: string, maxLength: 200, examples: ["Kyoto, Japan"] }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        travellers: { type: integer, minimum: 1, maximum: 30 }
+        trip_type: { type: string, examples: ["family visit"] }
+        pace: { type: string, examples: ["balanced"] }
+        budget: { type: string, examples: ["mid-range"] }
+        currency: { type: string, examples: ["AUD"] }
+        interests:
+          type: array
+          items: { type: string }
+        accommodation: { type: string }
+        dietary: { type: string }
+        mobility: { type: string }
+        home_city: { type: string }
+        audience:
+          type: string
+          description: Who the shared page is for.
+        notes: { type: string, maxLength: 4000 }
+        public: { type: boolean, default: true }
+        slug:
+          type: string
+          description: Preferred URL segment; one is derived if omitted.
+
+    Itinerary:
+      type: object
+      required: [id, username, slug, title, status, public, url, request, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        slug: { type: string }
+        title: { type: string }
+        status:
+          type: string
+          enum: [generating, ready, failed]
+        public: { type: boolean }
+        url:
+          type: string
+          format: uri
+          description: The shareable page.
+        model:
+          type: string
+          description: Which generator produced the document.
+        error:
+          type: string
+          description: Why generation failed, when status is failed.
+        request: { $ref: "#/components/schemas/TripRequest" }
+        document:
+          oneOf:
+            - { $ref: "#/components/schemas/Document" }
+            - { type: "null" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ItineraryList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Itinerary" }
+
+    Document:
+      type: object
+      description: The generated itinerary.
+      properties:
+        title: { type: string }
+        destination: { type: string }
+        tagline: { type: string }
+        summary: { type: string }
+        emoji: { type: string }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        travellers: { type: integer }
+        highlights: { type: array, items: { type: string } }
+        days:
+          type: array
+          items: { $ref: "#/components/schemas/Day" }
+        lodging:
+          type: array
+          items: { $ref: "#/components/schemas/Lodging" }
+        food:
+          type: array
+          items: { $ref: "#/components/schemas/Food" }
+        transport:
+          type: array
+          items: { $ref: "#/components/schemas/Transport" }
+        budget: { $ref: "#/components/schemas/Budget" }
+        packing: { type: array, items: { type: string } }
+        tips: { type: array, items: { type: string } }
+
+    Day:
+      type: object
+      properties:
+        day_number: { type: integer }
+        date: { type: string, format: date }
+        title: { type: string }
+        summary: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Activity" }
+
+    Activity:
+      type: object
+      properties:
+        time: { type: string }
+        title: { type: string }
+        description: { type: string }
+        category:
+          type: string
+          enum: [travel, food, sight, activity, outdoors, shopping, rest, event, logistics]
+        location: { type: string }
+        duration: { type: string }
+        cost_estimate: { type: string }
+        booking_note: { type: string }
+
+    Lodging:
+      type: object
+      properties:
+        name: { type: string }
+        area: { type: string }
+        style: { type: string }
+        nights: { type: string }
+        note: { type: string }
+
+    Food:
+      type: object
+      properties:
+        name: { type: string }
+        kind: { type: string }
+        area: { type: string }
+        price_band: { type: string }
+        note: { type: string }
+
+    Transport:
+      type: object
+      properties:
+        leg: { type: string }
+        mode: { type: string }
+        detail: { type: string }
+
+    Budget:
+      type: object
+      properties:
+        currency: { type: string }
+        total_estimate: { type: string }
+        per_person: { type: string }
+        breakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              amount: { type: string }
+              note: { type: string }
+        caveat: { type: string }
+
+    FormOptions:
+      type: object
+      properties:
+        trip_types: { type: array, items: { type: string } }
+        paces: { type: array, items: { type: string } }
+        budgets: { type: array, items: { type: string } }
+        currencies: { type: array, items: { type: string } }
+        interests: { type: array, items: { type: string } }
+        accommodation: { type: array, items: { type: string } }
+        audiences: { type: array, items: { type: string } }
+        max_nights: { type: integer }
+        max_travellers: { type: integer }
+
+    ApiTokenSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        prefix: { type: string }
+        created_at: { type: string, format: date-time }
+        last_used_at:
+          oneOf:
+            - { type: string, format: date-time }
+            - { type: "null" }
+
+    ApiTokenCreated:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        prefix: { type: string }
+        token:
+          type: string
+          description: The secret. Shown once.
+        note: { type: string }

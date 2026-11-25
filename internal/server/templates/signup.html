@@ -1,0 +1,26 @@
+{{ template "head.html" . }}
+<section class="narrow">
+  <h1>Create an account</h1>
+  {{ if .Error }}<p class="alert">{{ .Error }}</p>{{ end }}
+  <form method="post" action="/signup" class="stack">
+    <input type="hidden" name="csrf_token" value="{{ .CSRF }}">
+    <label>Username
+      <input name="username" required autocomplete="username" pattern="[a-z0-9][a-z0-9_\-]{2,30}"
+             value="{{ with .Form }}{{ .username }}{{ end }}">
+      <small>Lowercase letters, numbers, dash or underscore. It appears in your trip links.</small>
+    </label>
+    <label>Display name
+      <input name="display_name" autocomplete="name" value="{{ with .Form }}{{ .display_name }}{{ end }}">
+    </label>
+    <label>Email
+      <input name="email" type="email" required autocomplete="email" value="{{ with .Form }}{{ .email }}{{ end }}">
+    </label>
+    <label>Password
+      <input name="password" type="password" required minlength="10" autocomplete="new-password">
+      <small>At least 10 characters, mixing letters with a number or symbol.</small>
+    </label>
+    <button class="btn" type="submit">Create account</button>
+  </form>
+  <p>Already have one? <a href="/login">Sign in</a>.</p>
+</section>
+{{ template "foot.html" . }}

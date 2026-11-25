@@ -1,0 +1,29 @@
+# Application settings. The prompt context lives in its own ConfigMap, built by
+# kustomize from config/prompt-context.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: travel-next-env
+  namespace: travel-next
+data:
+  ADDR: ":8080"
+  APP_ENV: "production"
+  BASE_URL: "http://travel-next.localtest.me"
+  PGHOST: "travel-next-db"
+  PGPORT: "5432"
+  PGUSER: "travel"
+  PGDATABASE: "travel"
+  PGSSLMODE: "disable"
+  PROMPT_CONTEXT_FILE: "/etc/travel-next/prompt-context.yaml"
+  # Requests arrive via the ingress controller, so trust cluster-internal proxies.
+  TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+  DAILY_GENERATION_LIMIT: "25"
+
+  # Generator: anthropic | openai | local | stub.
+  # "stub" needs no credentials and is the safe default for a first run.
+  AI_PROVIDER: "stub"
+  AI_MODEL: ""
+  AI_BASE_URL: ""
+  AI_EFFORT: "high"
+  AI_MAX_TOKENS: "32000"
+  AI_TIMEOUT: "10m"
