@@ -1,0 +1,29 @@
+{{ define "head.html" }}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ if .PageTitle }}{{ .PageTitle }} · {{ end }}Travel Next</title>
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<header class="site">
+  <a class="brand" href="/">🧭 Travel&nbsp;Next</a>
+  <nav>
+    {{ if .User }}
+      <a href="/dashboard" {{ if eq .Path "/dashboard" }}class="on"{{ end }}>My trips</a>
+      <a href="/new" {{ if eq .Path "/new" }}class="on"{{ end }}>New trip</a>
+      <a href="/settings" {{ if eq .Path "/settings" }}class="on"{{ end }}>API</a>
+      <form method="post" action="/logout" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ .CSRF }}">
+        <button type="submit" class="link">Sign out</button>
+      </form>
+    {{ else }}
+      <a href="/api/docs">API</a>
+      <a href="/login">Sign in</a>
+      <a href="/signup" class="btn small">Create account</a>
+    {{ end }}
+  </nav>
+</header>
+<main>
+{{ end }}

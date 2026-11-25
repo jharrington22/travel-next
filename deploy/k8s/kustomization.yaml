@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: travel-next
+
+resources:
+  - 00-namespace.yaml
+  - 10-secrets.yaml
+  - 20-config.yaml
+  - 30-postgres.yaml
+  - 40-app.yaml
+  - 50-ingress.yaml
+
+# One source of truth for the prompt context: the same file the app reads
+# locally becomes the ConfigMap in the cluster. The name is kept stable (no hash
+# suffix) so `kubectl edit configmap travel-next-prompt-context` is a normal
+# thing to do — the pods reload it without a restart.
+configMapGenerator:
+  - name: travel-next-prompt-context
+    files:
+      - prompt-context.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

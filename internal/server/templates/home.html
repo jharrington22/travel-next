@@ -1,0 +1,26 @@
+{{ template "head.html" . }}
+<section class="hero">
+  <h1>Plan the trip once. Send one link.</h1>
+  <p class="lede">Answer a short form about your trip. Travel Next builds a day-by-day itinerary
+  and publishes it at a link you can send to family and friends —
+  <code>{{ .BaseURL }}/u/your-name/your-trip</code>.</p>
+  <p>
+    <a class="btn" href="/signup">Create an account</a>
+    <a class="btn ghost" href="/login">Sign in</a>
+  </p>
+</section>
+<section class="cards">
+  <div class="card">
+    <h3>1. Describe the trip</h3>
+    <p>Where, when, who with, how fast, what you care about, and anything that must be worked around.</p>
+  </div>
+  <div class="card">
+    <h3>2. We build the plan</h3>
+    <p>A model drafts every day of the trip — food, lodging, transport and a rough budget — as structured data.</p>
+  </div>
+  <div class="card">
+    <h3>3. Share the page</h3>
+    <p>One page, one link. Your hosts can see where you'll be and when, without a thread of screenshots.</p>
+  </div>
+</section>
+{{ template "foot.html" . }}

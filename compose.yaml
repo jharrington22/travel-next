@@ -1,0 +1,54 @@
+# Local run with podman: podman-compose up --build
+# Front end on http://localhost:8080 (nginx -> app -> postgres).
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_USER: travel
+      POSTGRES_PASSWORD: travel
+      POSTGRES_DB: travel
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U travel -d travel"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ADDR: ":8080"
+      BASE_URL: "http://localhost:8080"
+      DATABASE_URL: "postgres://travel:travel@db:5432/travel?sslmode=disable"
+      APP_ENV: development
+      # Front end terminates the connection, so trust its forwarded headers.
+      TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+      PROMPT_CONTEXT_FILE: /etc/travel-next/prompt-context.yaml
+      # Pick a generator: anthropic | openai | local | stub
+      AI_PROVIDER: ${AI_PROVIDER:-stub}
+      AI_MODEL: ${AI_MODEL:-}
+      AI_BASE_URL: ${AI_BASE_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      # Edit deploy/k8s/prompt-context.yaml and the running app picks it up —
+      # the same file kustomize turns into the ConfigMap in Kubernetes.
+      - ./deploy/k8s/prompt-context.yaml:/etc/travel-next/prompt-context.yaml:ro,z
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: docker.io/library/nginx:1.27-alpine
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro,z
+    depends_on:
+      - app
+
+volumes:
+  pgdata: {}

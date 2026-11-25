@@ -1,0 +1,43 @@
+{{ template "head.html" . }}
+<section class="narrow">
+  <h1>API access</h1>
+  <p class="lede">The same itineraries are available over a token-authenticated REST API described by
+  <a href="/api/openapi.yaml">openapi.yaml</a>. See the <a href="/api/docs">API docs</a>.</p>
+
+  {{ if .NewToken }}
+    <div class="alert ok">
+      <p><strong>Your new token.</strong> Copy it now — it is hashed on save and cannot be shown again.</p>
+      <pre class="token">{{ .NewToken.Secret }}</pre>
+    </div>
+  {{ end }}
+
+  <form method="post" action="/settings/tokens" class="row gap">
+    <input type="hidden" name="csrf_token" value="{{ .CSRF }}">
+    <input name="name" placeholder="laptop cli" maxlength="80">
+    <button class="btn" type="submit">Create token</button>
+  </form>
+
+  {{ if .Tokens }}
+  <table class="list">
+    <thead><tr><th>Name</th><th>Prefix</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+    <tbody>
+    {{ range .Tokens }}
+      <tr>
+        <td>{{ .Name }}</td>
+        <td><code>{{ .Prefix }}…</code></td>
+        <td>{{ .CreatedAt.Format "2 Jan 2006" }}</td>
+        <td>{{ if .LastUsedAt }}{{ .LastUsedAt.Format "2 Jan 2006" }}{{ else }}never{{ end }}</td>
+        <td>
+          <form method="post" action="/settings/tokens/{{ .ID }}/delete" class="inline"
+                onsubmit="return confirm('Revoke this token?')">
+            <input type="hidden" name="csrf_token" value="{{ $.CSRF }}">
+            <button class="link danger" type="submit">Revoke</button>
+          </form>
+        </td>
+      </tr>
+    {{ end }}
+    </tbody>
+  </table>
+  {{ end }}
+</section>
+{{ template "foot.html" . }}

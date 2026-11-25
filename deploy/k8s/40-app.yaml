@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: travel-next
+  namespace: travel-next
+spec:
+  selector:
+    app: travel-next
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: travel-next
+  namespace: travel-next
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: travel-next
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: travel-next
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: localhost/travel-next:dev
+          # kind/minikube load the image locally; never reach out for it.
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: travel-next-env
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: travel-next
+                  key: POSTGRES_PASSWORD
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: travel-next
+                  key: ANTHROPIC_API_KEY
+            - name: AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: travel-next
+                  key: AI_API_KEY
+          volumeMounts:
+            # Edit the ConfigMap and running pods pick the change up within
+            # about a minute — no restart, no rebuild.
+            - name: prompt-context
+              mountPath: /etc/travel-next
+              readOnly: true
+          startupProbe:
+            # Covers waiting for Postgres and running migrations on first boot.
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: prompt-context
+          configMap:
+            name: travel-next-prompt-context

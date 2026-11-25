@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: travel-next-db
+  namespace: travel-next
+spec:
+  clusterIP: None
+  selector:
+    app: travel-next-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: travel-next-db
+  namespace: travel-next
+spec:
+  serviceName: travel-next-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: travel-next-db
+  template:
+    metadata:
+      labels:
+        app: travel-next-db
+    spec:
+      containers:
+        - name: postgres
+          image: docker.io/library/postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: travel
+            - name: POSTGRES_DB
+              value: travel
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: travel-next
+                  key: POSTGRES_PASSWORD
+            # The image refuses to initialise into a non-empty mount root, so
+            # keep the data one level down.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "travel", "-d", "travel"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi

@@ -1,0 +1,105 @@
+{{ template "head.html" . }}
+<section class="narrow">
+  <h1>Plan a new trip</h1>
+  <p class="lede">The more specific the answers, the more useful the plan. Everything here is sent to the
+  configured AI provider along with the site's standing context.</p>
+  {{ if .Error }}<p class="alert">{{ .Error }}</p>{{ end }}
+
+  <form method="post" action="/new" class="stack">
+    <input type="hidden" name="csrf_token" value="{{ .CSRF }}">
+
+    <label>Destination
+      <input name="destination" required maxlength="200" placeholder="Kyoto, Japan"
+             value="{{ with .Form }}{{ .Destination }}{{ end }}">
+    </label>
+
+    <div class="grid2">
+      <label>Arrive
+        <input name="start_date" type="date" required value="{{ with .Form }}{{ .StartDate }}{{ end }}">
+      </label>
+      <label>Leave
+        <input name="end_date" type="date" required value="{{ with .Form }}{{ .EndDate }}{{ end }}">
+      </label>
+    </div>
+
+    <div class="grid2">
+      <label>Travellers
+        <input name="travellers" type="number" min="1" max="{{ .Options.Limits.MaxTravellers }}"
+               value="{{ with .Form }}{{ .Travellers }}{{ else }}2{{ end }}" required>
+      </label>
+      <label>Travelling from
+        <input name="home_city" maxlength="120" placeholder="Melbourne"
+               value="{{ with .Form }}{{ .HomeCity }}{{ end }}">
+      </label>
+    </div>
+
+    <div class="grid2">
+      <label>Trip type
+        <select name="trip_type">
+          {{ range .Options.Form.TripTypes }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+        </select>
+      </label>
+      <label>Pace
+        <select name="pace">
+          {{ range .Options.Form.Paces }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+        </select>
+      </label>
+    </div>
+
+    <div class="grid2">
+      <label>Budget
+        <select name="budget">
+          {{ range .Options.Form.Budgets }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+        </select>
+      </label>
+      <label>Currency
+        <select name="currency">
+          {{ range .Options.Form.Currencies }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+        </select>
+      </label>
+    </div>
+
+    <fieldset>
+      <legend>Interests</legend>
+      <div class="checks">
+        {{ range .Options.Form.Interests }}
+          <label class="check"><input type="checkbox" name="interests" value="{{ . }}"> {{ . }}</label>
+        {{ end }}
+      </div>
+    </fieldset>
+
+    <div class="grid2">
+      <label>Accommodation
+        <select name="accommodation">
+          {{ range .Options.Form.Accommodation }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+        </select>
+      </label>
+      <label>Sharing this with
+        <select name="audience">
+          {{ range .Options.Form.Audiences }}<option value="{{ . }}">{{ . }}</option>{{ end }}
+        </select>
+      </label>
+    </div>
+
+    <label>Dietary needs
+      <input name="dietary" maxlength="200" placeholder="One vegetarian, one coeliac"
+             value="{{ with .Form }}{{ .Dietary }}{{ end }}">
+    </label>
+
+    <label>Accessibility and mobility
+      <input name="mobility" maxlength="200" placeholder="Limited walking; prefer lifts over stairs"
+             value="{{ with .Form }}{{ .Mobility }}{{ end }}">
+    </label>
+
+    <label>Anything else
+      <textarea name="notes" rows="4" maxlength="4000"
+                placeholder="Staying with my sister in the north of the city for the first three nights. One day needs to be free for a wedding.">{{ with .Form }}{{ .Notes }}{{ end }}</textarea>
+    </label>
+
+    <label class="check"><input type="checkbox" name="public" value="on" checked> Publish at a shareable link</label>
+
+    <button class="btn" type="submit">Build my itinerary</button>
+    <small>Generation usually takes under a minute. You can close the page — it keeps going.</small>
+  </form>
+</section>
+{{ template "foot.html" . }}
