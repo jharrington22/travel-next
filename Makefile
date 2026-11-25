@@ -95,9 +95,9 @@ k8s-status: ## Pods, services and ingress
 k8s-logs: ## Follow the app logs
 	kubectl -n $(NAMESPACE) logs -l app=travel-next -f --tail=100
 
-k8s-prompt-reload: ## Push deploy/k8s/prompt-context.yaml to the cluster (no restart)
+k8s-prompt-reload: ## Push deploy/k8s/prompt-context.md to the cluster (no restart)
 	kubectl -n $(NAMESPACE) create configmap travel-next-prompt-context \
-	  --from-file=prompt-context.yaml=deploy/k8s/prompt-context.yaml \
+	  --from-file=prompt-context.md=deploy/k8s/prompt-context.md \
 	  --dry-run=client -o yaml | kubectl apply -f -
 	@echo "Pods reload it within ~70s. Check: kubectl -n $(NAMESPACE) exec deploy/travel-next -- wget -qO- localhost:8080/readyz"
 

@@ -60,7 +60,7 @@ func Load() (*Config, error) {
 		GenTimeout:    envDuration("GENERATION_TIMEOUT", 10*time.Minute),
 		DailyGenLimit: envInt("DAILY_GENERATION_LIMIT", 25),
 
-		PromptContextFile: env("PROMPT_CONTEXT_FILE", "deploy/k8s/prompt-context.yaml"),
+		PromptContextFile: env("PROMPT_CONTEXT_FILE", "deploy/k8s/prompt-context.md"),
 		UnsplashAccessKey: env("UNSPLASH_ACCESS_KEY", ""),
 		Env:               env("APP_ENV", "development"),
 	}

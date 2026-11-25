@@ -1,5 +1,5 @@
 # Application settings. The prompt context lives in its own ConfigMap, built by
-# kustomize from config/prompt-context.yaml.
+# kustomize from deploy/k8s/prompt-context.md.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,7 +14,7 @@ data:
   PGUSER: "travel"
   PGDATABASE: "travel"
   PGSSLMODE: "disable"
-  PROMPT_CONTEXT_FILE: "/etc/travel-next/prompt-context.yaml"
+  PROMPT_CONTEXT_FILE: "/etc/travel-next/prompt-context.md"
   # Requests arrive via the ingress controller, so trust cluster-internal proxies.
   TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
   DAILY_GENERATION_LIMIT: "25"

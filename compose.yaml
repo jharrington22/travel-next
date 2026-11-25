@@ -26,7 +26,7 @@ services:
       APP_ENV: development
       # Front end terminates the connection, so trust its forwarded headers.
       TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
-      PROMPT_CONTEXT_FILE: /etc/travel-next/prompt-context.yaml
+      PROMPT_CONTEXT_FILE: /etc/travel-next/prompt-context.md
       # Pick a generator: anthropic | openai | local | stub
       AI_PROVIDER: ${AI_PROVIDER:-stub}
       AI_MODEL: ${AI_MODEL:-}
@@ -34,9 +34,9 @@ services:
       AI_API_KEY: ${AI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     volumes:
-      # Edit deploy/k8s/prompt-context.yaml and the running app picks it up —
+      # Edit deploy/k8s/prompt-context.md and the running app picks it up —
       # the same file kustomize turns into the ConfigMap in Kubernetes.
-      - ./deploy/k8s/prompt-context.yaml:/etc/travel-next/prompt-context.yaml:ro,z
+      - ./deploy/k8s/prompt-context.md:/etc/travel-next/prompt-context.md:ro,z
     depends_on:
       db:
         condition: service_healthy

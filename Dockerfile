@@ -18,9 +18,9 @@ RUN apk add --no-cache ca-certificates tzdata \
 COPY --from=build /out/server /usr/local/bin/server
 # The default prompt context ships in the image; Kubernetes mounts a ConfigMap
 # over PROMPT_CONTEXT_FILE to override it without a rebuild.
-COPY deploy/k8s/prompt-context.yaml /etc/travel-next/prompt-context.yaml
+COPY deploy/k8s/prompt-context.md /etc/travel-next/prompt-context.md
 USER 10001:10001
 ENV ADDR=:8080 \
-    PROMPT_CONTEXT_FILE=/etc/travel-next/prompt-context.yaml
+    PROMPT_CONTEXT_FILE=/etc/travel-next/prompt-context.md
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/server"]

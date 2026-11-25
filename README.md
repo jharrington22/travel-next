@@ -48,7 +48,7 @@ browser ──▶ nginx ──▶ Gin app ──▶ Postgres
 2. The app stores the request, returns immediately, and generates in the
    background. The row's `status` moves `generating` → `ready` (or `failed`).
 3. Generation combines three things: the **form answers**, the **standing
-   context** from `prompt-context.yaml`, and a **JSON schema**. The provider is
+   context** from `prompt-context.md`, and a **JSON schema**. The provider is
    asked for structured JSON — not prose — so the result can be stored,
    re-rendered and served over the API.
 4. The JSON is rendered server-side into one interactive page: day tabs, a
@@ -76,7 +76,7 @@ internal/
 deploy/
   nginx/nginx.conf        local front end (the ingress does this job in k8s)
   k8s/                    namespace, config, secret, Postgres, app, ingress, kind config
-  k8s/prompt-context.yaml the prompt context — read directly when local, ConfigMap in k8s
+  k8s/prompt-context.md the prompt context — read directly when local, ConfigMap in k8s
 Dockerfile               multi-stage build (works unchanged with podman)
 compose.yaml             nginx + app + Postgres for podman-compose
 Makefile                 every workflow below, as a target
@@ -153,7 +153,7 @@ One of the two is required; the app refuses to start without a database.
 |---|---|---|
 | `DAILY_GENERATION_LIMIT` | `25` | Itineraries per user per rolling 24h |
 | `GENERATION_TIMEOUT` | `10m` | Hard ceiling on one background generation |
-| `PROMPT_CONTEXT_FILE` | `deploy/k8s/prompt-context.yaml` | See below |
+| `PROMPT_CONTEXT_FILE` | `deploy/k8s/prompt-context.md` | See below |
 | `UNSPLASH_ACCESS_KEY` | *(none)* | Optional. Enables a hero photo per itinerary — see [Hero photos](#hero-photos-optional-costs-no-ai-tokens) |
 
 ### AI providers
@@ -221,30 +221,43 @@ inline `style=""`, specifically so it doesn't need a looser `style-src`.
 
 ### Prompt context: tuning the AI without a code change
 
-`deploy/k8s/prompt-context.yaml` holds everything about *how* the model is
-asked, separately from the code that asks:
+`deploy/k8s/prompt-context.md` holds everything about *how* the model is
+asked, separately from the code that asks — written as plain Markdown so a
+non-technical editor can open it, read what each part does, and change it
+without touching code or YAML:
 
-```yaml
-system_prompt: |     # the base instruction block
-sections:            # headed guidance blocks, appended in order
-  - heading: How to plan
-    body: |
-      ...
-rules:               # short imperative lines, appended as a bulleted list
-user_preamble:       # prepended to the per-request message
-form:                # the vocabulary the FORM offers
-  trip_types: [...]
-  paces: [...]
-  interests: [...]
-limits:              # max nights, max travellers, items per day
+```markdown
+## The AI's Main Instructions
+<!-- field: system_prompt -->
+> **What this affects:** the core instructions given to the AI before it
+> plans any trip at all.
+
+You are the itinerary planner for Travel Next, ...
+
+## Trip Type Options (dropdown on the form)
+<!-- field: form.trip_types -->
+> **What this affects:** the choices under "Trip type" on the planning form.
+
+- family visit
+- holiday
+- ...
 ```
+
+The heading text and the italic "what this affects" note are free text —
+reword them however reads best. What the program actually reads is the
+`<!-- field: ... -->` marker line: everything between one marker and the next
+becomes that field's value, and the note (any line starting with `>` right
+after the marker) is stripped before that value is used, so it never reaches
+the AI or the form. The only rule: don't delete a marker line. Full list of
+markers, and which are allowed to repeat, is documented at the top of
+[`internal/promptctx/promptctx.go`](internal/promptctx/promptctx.go).
 
 Two things make this worth knowing about:
 
-- **`form:` drives the actual form.** The dropdowns and checkboxes on `/new`,
-  and the `GET /api/v1/form-options` response, are rendered from this file. The
-  words a user picks and the words the model is prompted with cannot drift
-  apart.
+- **The form markers drive the actual form.** The dropdowns and checkboxes on
+  `/new`, and the `GET /api/v1/form-options` response, are rendered from this
+  file. The words a user picks and the words the model is prompted with
+  cannot drift apart.
 - **It is hot-reloaded.** The file is re-read when its contents change (checked
   at most every 10s). In Kubernetes it is mounted from a ConfigMap, so
   `kubectl edit configmap travel-next-prompt-context` changes the prompt on
@@ -252,21 +265,21 @@ Two things make this worth knowing about:
 
 One file serves both environments: the app reads it directly when you run
 locally, and `kustomize` turns the same file into the ConfigMap.
-`internal/promptctx/default.yaml` is a copy compiled into the binary and used
+`internal/promptctx/default.md` is a copy compiled into the binary and used
 only as a fallback when `PROMPT_CONTEXT_FILE` is missing — `/readyz` says so
 when that happens, so a mis-mounted volume is visible rather than silent.
 `/readyz` reports which copy is live:
 
 ```json
 {"status":"ok","database":"ok","generator":"anthropic/claude-opus-5",
- "prompt_context":{"source":"/etc/travel-next/prompt-context.yaml","checksum":"88c58b62","version":1}}
+ "prompt_context":{"source":"/etc/travel-next/prompt-context.md","checksum":"88c58b62"}}
 ```
 
-A file that exists but does not parse is a **startup error** — booting with
-silently-wrong prompt context is worse than failing loudly. An unknown key is
-also an error, so a ConfigMap typo can't quietly do nothing. If a *reload*
-fails, the last good copy stays in use and the error shows up in `/readyz` as
-`prompt_context_error`.
+A file that doesn't parse — a required marker missing, or the AI's
+Instructions left empty — is a **startup error**, naming exactly which marker
+is missing: booting with silently-wrong prompt context is worse than failing
+loudly. If a *reload* fails, the last good copy stays in use and the error
+shows up in `/readyz` as `prompt_context_error`.
 
 ## Running locally
 
@@ -302,7 +315,7 @@ export AI_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-...
 make compose-up
 ```
 
-`deploy/k8s/prompt-context.yaml` is bind-mounted into the app container, so
+`deploy/k8s/prompt-context.md` is bind-mounted into the app container, so
 editing it on the host retunes the running stack.
 
 > Rootless podman cannot bind ports below 1024 by default, which is why the
@@ -341,7 +354,7 @@ What gets created, in order:
 | `30-postgres.yaml` | headless Service + single-replica StatefulSet with a 2Gi PVC and a `pg_isready` probe |
 | `40-app.yaml` | Service + 2-replica Deployment: non-root, read-only root filesystem, all capabilities dropped, startup/readiness/liveness probes, prompt-context ConfigMap mounted at `/etc/travel-next` |
 | `50-ingress.yaml` | the nginx front end as an Ingress (`ingressClassName: nginx`, host `travel-next.localtest.me`) |
-| `kustomization.yaml` | ties them together and generates the prompt-context ConfigMap from `prompt-context.yaml`, with a stable name (no hash suffix) so editing it in-cluster is a normal operation |
+| `kustomization.yaml` | ties them together and generates the prompt-context ConfigMap from `prompt-context.md`, with a stable name (no hash suffix) so editing it in-cluster is a normal operation |
 
 **Replace the example secret before anything that matters.** Either edit
 `10-secrets.yaml`, or delete it from `kustomization.yaml` and create the secret

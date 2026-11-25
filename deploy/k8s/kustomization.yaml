@@ -17,7 +17,7 @@ resources:
 configMapGenerator:
   - name: travel-next-prompt-context
     files:
-      - prompt-context.yaml
+      - prompt-context.md
 
 generatorOptions:
   disableNameSuffixHash: true
